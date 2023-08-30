@@ -127,7 +127,7 @@ fi
 ### Install additional client dependencies
 cd client
 echo "Installing additional client dependencies: chakra-ui, axios..."
-yarn add @chakra-ui/react @chakra-ui/core @emotion/react @emotion/styled framer-motion axios react-query
+yarn add @chakra-ui/react @chakra-ui/core @emotion/react @emotion/styled framer-motion axios react-query react-router-dom react-router react-router-config
 yarn add @types/react-query @types/axios http-proxy-middleware --dev
 
 ## Setup client .env file

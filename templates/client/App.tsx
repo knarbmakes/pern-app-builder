@@ -1,31 +1,27 @@
-import React, { useContext } from 'react';
-import { AuthProvider, AuthContext } from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { QueryClient, QueryClientProvider } from 'react-query';
-import { Box, Heading, Button, Container, Flex } from '@chakra-ui/react';
 import { ChakraProvider } from '@chakra-ui/react';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
-function AppContent() {
-  const { user, logout } = useContext(AuthContext);
+import { RootPage } from './pages/RootPage';
+import { DashboardPage } from './pages/DashboardPage';
+import { ErrorPage } from './pages/ErrorPage';
 
-  return (
-    <Container centerContent>
-      <Box textAlign="center" fontSize="xl">
-        <Flex minH="100vh" p={3} flexDirection="column" justifyContent="center" alignItems="center">
-          <Box p={4}>
-            {user && (
-              <Box>
-                <Heading mb={4}>Welcome, {user.username}!</Heading>
-                <Button mt={4} colorScheme="teal" onClick={logout}>
-                  Logout
-                </Button>
-              </Box>
-            )}
-          </Box>
-        </Flex>
-      </Box>
-    </Container>
-  );
-}
+const pages = [
+  {
+    path: '/',
+    element: <RootPage />,
+    errorElement: <ErrorPage />,
+    children: [
+      {
+        path: '/dashboard',
+        element: <DashboardPage />,
+      },
+    ],
+  },
+];
+
+const router = createBrowserRouter(pages);
 
 function App() {
   const queryClient = new QueryClient();
@@ -34,7 +30,7 @@ function App() {
     <ChakraProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <AppContent />
+          <RouterProvider router={router} />
         </AuthProvider>
       </QueryClientProvider>
     </ChakraProvider>
