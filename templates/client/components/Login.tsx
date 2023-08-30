@@ -1,41 +1,76 @@
 import React, { useState } from 'react';
-import { Box, Input, FormControl, FormLabel, Button, FormErrorMessage } from '@chakra-ui/react';
+import { Box, Input, FormControl, FormLabel, Button, Flex, Text, VStack, Container } from '@chakra-ui/react';
 
 type LoginProps = {
-  handleSubmit: (e: React.FormEvent, username: string, password: string) => Promise<void>;
+  handleLogin: (email: string, password: string) => Promise<void>;
+  handleRegister: (email: string, password: string, username: string) => Promise<void>;
 };
 
-export const Login: React.FC<LoginProps> = ({ handleSubmit }) => {
+const InputField: React.FC<{
+  label: string;
+  type: string;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}> = ({ label, type, value, placeholder, onChange }) => (
+  <FormControl isRequired mb={4}>
+    <FormLabel>{label}</FormLabel>
+    <Input type={type} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
+  </FormControl>
+);
+
+export const Login: React.FC<LoginProps> = ({ handleLogin, handleRegister }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [isRegisterForm, setRegisterForm] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    isRegisterForm ? handleRegister(email, password, username) : handleLogin(email, password);
+  };
 
   return (
-    <Box p={8} maxWidth="500px" borderWidth={1} borderRadius={8} boxShadow="lg">
-      <form onSubmit={(e) => handleSubmit(e, username, password)}>
-        <FormControl id="username" isRequired mb={4}>
-          <FormLabel>Username</FormLabel>
-          <Input
-            type="text"
-            placeholder="Enter your username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          /> 
-        </FormControl>
-        
-        <FormControl id="password" isRequired mb={4}>
-          <FormLabel>Password</FormLabel>
-          <Input
+    <Container mt="20px">
+      <Box p={8} maxWidth="500px" borderWidth={1} borderRadius={8} boxShadow="lg">
+        <form onSubmit={handleSubmit}>
+          <InputField label="Email" type="email" value={email} placeholder="Enter your email" onChange={setEmail} />
+          <InputField
+            label="Password"
             type="password"
-            placeholder="Enter your password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter your password"
+            onChange={setPassword}
           />
-        </FormControl>
-        
-        <Button type="submit" colorScheme="blue">
-          Login
-        </Button>
-      </form>
-    </Box>
+
+          {isRegisterForm && (
+            <InputField
+              label="Name"
+              type="text"
+              value={username}
+              placeholder="Enter your name"
+              onChange={setUsername}
+            />
+          )}
+
+          <VStack spacing={4}>
+            <Flex justifyContent="center">
+              <Button type="submit" colorScheme={isRegisterForm ? 'green' : 'blue'}>
+                {isRegisterForm ? 'Register' : 'Login'}
+              </Button>
+            </Flex>
+            <Text
+              as="a"
+              color="blue.500"
+              cursor="pointer"
+              textAlign="center"
+              onClick={() => setRegisterForm(!isRegisterForm)}
+            >
+              {isRegisterForm ? 'Back to Login' : 'Register Account'}
+            </Text>
+          </VStack>
+        </form>
+      </Box>
+    </Container>
   );
 };

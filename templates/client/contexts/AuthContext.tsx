@@ -1,85 +1,121 @@
-import React, { createContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
-import { useLogin } from '../core/useLogin';
+import { useLogin } from '../hooks/useLogin';
+import { useGetUser } from '../hooks/useGetUser';
+import { useLogout } from '../hooks/useLogout';
 import { AUTH_TOKEN_LS_KEY } from '../core/const';
 import { Login } from '../components/Login';
-import { useGetUser } from '../core/useGetUser';
+import { useRegister } from '../hooks/useRegister';
+import { CommonTypes } from 'common';
 
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Auth context data
-export interface AuthContextData {
-  user: User | null;
-  setUser: React.Dispatch<React.SetStateAction<User | null>>;
-  getAccessToken?: () => string | null;
-  setAccessTokenFromResponse?: (response: any) => void;
-}
-
-// Initialize Auth context with empty object
-export const AuthContext = createContext<AuthContextData>({} as AuthContextData);
-
-const getAccessToken = () => {
-  return localStorage.getItem(AUTH_TOKEN_LS_KEY);
-};
+const getAccessToken = () => localStorage.getItem(AUTH_TOKEN_LS_KEY);
 
 const setAccessTokenFromResponse = (response: any) => {
-  if (response.headers.authorization) {
-    localStorage.setItem(AUTH_TOKEN_LS_KEY, response.headers.authorization);
-  }
+  const token = response.headers.authorization?.replace('Bearer ', '');
+  if (token) localStorage.setItem(AUTH_TOKEN_LS_KEY, token);
 };
+
+export interface AuthContextData {
+  user: CommonTypes.User | null;
+  setUser: React.Dispatch<React.SetStateAction<CommonTypes.User | null>>;
+  getAccessToken: () => string | null;
+  setAccessTokenFromResponse: (response: any) => void;
+  logout?: () => void;
+}
+
+export const AuthContext = createContext<AuthContextData>({
+  user: null,
+  setUser: () => null,
+  getAccessToken,
+  setAccessTokenFromResponse,
+  logout: () => null,
+});
 
 type Props = {
   children: string | JSX.Element | JSX.Element[] | (() => JSX.Element);
 };
 
 export function AuthProvider({ children }: Props) {
-    const [user, setUser] = useState<User | null>(null);
-    const { data: userData } = useGetUser();
-    const loginMutation = useLogin();
-    const toast = useToast();
-  
-    useEffect(() => {
-      if (userData) {
-        setUser(userData);
+  const [user, setUser] = useState<CommonTypes.User | null>(null);
+  const { data: userData } = useGetUser();
+  const loginMutation = useLogin();
+  const registerMutation = useRegister();
+  const logoutMutation = useLogout();
+
+  useEffect(() => {
+    if (userData) {
+      setUser(userData);
+    }
+  }, [userData]);
+
+  const toast = useToast();
+  const handleToastNotification = useCallback(
+    (title: string, defaultDescription: string, status: 'error' | 'success', errorResponse?: any) => {
+      const description = errorResponse?.response?.data?.error || defaultDescription;
+      toast({
+        title,
+        description,
+        status,
+        duration: 5000,
+        isClosable: true,
+      });
+    },
+    [toast]
+  );
+
+  const handleLogout = useCallback(async () => {
+    try {
+      await logoutMutation.mutateAsync({});
+      localStorage.removeItem(AUTH_TOKEN_LS_KEY);
+      handleToastNotification('Success', 'You have successfully logged out', 'success');
+      setUser(null);
+    } catch (error: any) {
+      handleToastNotification('Error', 'There was an error logging out', 'error', error);
+    }
+  }, [handleToastNotification, logoutMutation]);
+
+  const handleAuthentication = async (
+    action: 'login' | 'register',
+    email: string,
+    password: string,
+    username?: string
+  ) => {
+    try {
+      const mutation = action === 'login' ? loginMutation : registerMutation;
+      const result = await mutation.mutateAsync({ email, password, username });
+      const successMessage = action === 'login' ? 'You have successfully logged in' : 'Your account has been created';
+      handleToastNotification('Success', successMessage, 'success');
+      if (result) {
+        setUser(result);
       }
-    }, [userData]);
-  
-    const value: AuthContextData = useMemo(
-      () => ({
-        user,
-        setUser,
-        getAccessToken,
-        setAccessTokenFromResponse,
-      }),
-      [user]
-    );
-  
-    const handleSubmit = async (e: React.FormEvent, username: string, password: string) => {
-      e.preventDefault();
-  
-      try {
-        await loginMutation.mutateAsync({ username, password });
-        // User will be automatically updated due to the `onSuccess` in `useLogin`
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: 'There was an error logging in',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
-      }
-    };
-  
-    return (
-      <AuthContext.Provider value={value}>
-        {!user ? <Login handleSubmit={handleSubmit} /> : <>{children}</>}
-      </AuthContext.Provider>
-    );
-  }
+    } catch (error: any) {
+      const errorMessage =
+        action === 'login' ? 'There was an error logging in' : 'There was an error creating your account';
+      handleToastNotification('Error', errorMessage, 'error', error);
+    }
+  };
+
+  const value: AuthContextData = useMemo(
+    () => ({
+      user,
+      setUser,
+      getAccessToken,
+      setAccessTokenFromResponse,
+      logout: handleLogout,
+    }),
+    [handleLogout, user]
+  );
+
+  return (
+    <AuthContext.Provider value={value}>
+      {!user ? (
+        <Login
+          handleLogin={(email, password) => handleAuthentication('login', email, password)}
+          handleRegister={(email, password, username) => handleAuthentication('register', email, password, username)}
+        />
+      ) : (
+        <>{children}</>
+      )}
+    </AuthContext.Provider>
+  );
+}

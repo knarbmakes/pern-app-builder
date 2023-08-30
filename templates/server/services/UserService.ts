@@ -3,12 +3,23 @@ import { CommonTypes } from 'common';
 import { DataReply } from '../core/DataReply';
 import { AuthService } from './AuthService';
 import { FilterQuery } from 'mongoose';
+import { PasswordAuthModel } from '../models/PasswordAuthModel';
 
 export class UserService {
   // Create a new user
-  static async create(user: Partial<CommonTypes.User>): Promise<DataReply<CommonTypes.User>> {
+  static async create(user: Partial<CommonTypes.User>, password?: string): Promise<DataReply<CommonTypes.User>> {
     try {
       const created = await UserModel.create(user);
+
+      if (password) {
+        // Create a password auth record
+        const hashedPassword = await AuthService.hashPassword(password);
+        await PasswordAuthModel.create({
+          userId: created.id,
+          passwordHash: hashedPassword,
+        });
+      }
+
       return { data: created.toJSON() };
     } catch (error: any) {
       return { error: error.message };
@@ -38,9 +49,9 @@ export class UserService {
   }
 
   // New method to refresh the token
-  static async refresh(player: CommonTypes.User): Promise<DataReply<string>> {
+  static async refresh(user: CommonTypes.User): Promise<DataReply<string>> {
     try {
-      const accessToken = AuthService.generateAccessToken(player);
+      const accessToken = AuthService.generateAccessToken(user);
       return { data: accessToken };
     } catch (error: any) {
       return { error: error.message };

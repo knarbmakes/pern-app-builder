@@ -54,8 +54,8 @@ echo "JWT_SECRET_KEY=localsecret" >> .env
 
 ### Install Dependencies
 echo "Installing dependencies..."
-yarn add express mongoose jsonwebtoken env-var cors cookie-parser
-yarn add typescript ts-node @types/node @types/express @types/cors @types/jsonwebtoken @types/cookie-parser dotenv --dev
+yarn add express mongoose jsonwebtoken env-var cors cookie-parser pino pino-http ulid bcrypt
+yarn add typescript ts-node @types/node @types/express @types/cors @types/jsonwebtoken @types/cookie-parser dotenv pino-pretty nodemon @types/bcrypt --dev
 
 ### Initialize TypeScript
 echo "Initializing TypeScript..."
@@ -77,7 +77,7 @@ fi
 
 ### Update package.json to include start script
 echo "Adding start script to package.json..."
-jq '.scripts.start = "npx ts-node src/index.ts"' package.json > temp.json && mv temp.json package.json
+jq '.scripts.start = "nodemon --exec ts-node src/index.ts | pino-pretty --singleLine"' package.json > temp.json && mv temp.json package.json
 
 ### Setup Complete Message
 echo "Server setup complete! You can now run the server using 'yarn start'"
@@ -102,6 +102,12 @@ fi
 cd client
 echo "Installing additional client dependencies: chakra-ui, axios..."
 yarn add @chakra-ui/react @chakra-ui/core @emotion/react @emotion/styled framer-motion axios react-query
+yarn add @types/react-query @types/axios http-proxy-middleware --dev
+
+## Setup client .env file
+echo "Creating .env file with MONGO_URI..."
+echo "REACT_APP_LOGGING_ENV=development" > .env
+echo "REACT_APP_BACKEND_API_URL=/api" >> .env
 cd ..
 
 ## Common package setup
@@ -119,7 +125,6 @@ echo "{
   }
 }" > package.json
 mkdir src
-echo 'console.log("Hello from common");' > src/index.ts
 
 ### Copy template files from the predefined directory for common
 template_directory_common="$script_dir/templates/common"
