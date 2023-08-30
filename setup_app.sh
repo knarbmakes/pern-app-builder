@@ -18,14 +18,32 @@ project_name=$1
 mkdir $project_name
 cd $project_name
 
-# Initialize package.json in the root directory
+# Create start_postgres.sh script
+echo "#!/bin/bash
+# Stop and remove any existing container with the name postgres-local
+docker stop postgres-local || true && docker rm postgres-local || true
+
+# Start a new PostgreSQL container
+docker run --name postgres-local -e POSTGRES_PASSWORD=localpassword -p 5432:5432 -d postgres:latest
+
+# Wait for a few seconds to ensure the PostgreSQL container is fully up
+sleep 5
+
+# Create the database
+docker exec -it postgres-local psql -U postgres -c \"CREATE DATABASE $project_name;\"
+" > start_postgres.sh
+
+# Make it executable
+chmod +x start_postgres.sh
+
+# Modify package.json to call this script for the postgres command
 echo "{
   \"name\": \"$project_name\",
   \"version\": \"1.0.0\",
   \"scripts\": {
     \"client\": \"yarn workspace client start\",
     \"server\": \"yarn workspace server start\",
-    \"mongodb\": \"docker run --name mongodb-local -p 27017:27017 -d mongo:latest\"
+    \"postgres\": \"./start_postgres.sh\"
   },
   \"workspaces\": [
     \"packages/*\"
@@ -48,18 +66,26 @@ echo "Initializing Node.js project..."
 yarn init -y
 
 ### Create .env file
-echo "Creating .env file with MONGO_URI..."
-echo "MONGODB_URI=mongodb://localhost:27017/$project_name" > .env
+echo "Creating .env file with PostgreSQL settings..."
+echo "POSTGRES_HOST=localhost" > .env
+echo "POSTGRES_PORT=5432" >> .env
+echo "POSTGRES_USER=postgres" >> .env
+echo "POSTGRES_PASSWORD=localpassword" >> .env
+echo "POSTGRES_DB=$project_name" >> .env
 echo "JWT_SECRET_KEY=localsecret" >> .env
+
 
 ### Install Dependencies
 echo "Installing dependencies..."
-yarn add express mongoose jsonwebtoken env-var cors cookie-parser pino pino-http ulid bcrypt
-yarn add typescript ts-node @types/node @types/express @types/cors @types/jsonwebtoken @types/cookie-parser dotenv pino-pretty nodemon @types/bcrypt --dev
+yarn add express pg typeorm reflect-metadata jsonwebtoken env-var cors cookie-parser pino pino-http ulid bcrypt glob
+yarn add typescript ts-node @types/node @types/express @types/cors @types/jsonwebtoken @types/cookie-parser dotenv pino-pretty nodemon @types/bcrypt @types/pg --dev
 
 ### Initialize TypeScript
 echo "Initializing TypeScript..."
 npx tsc --init
+
+# Add experimentalDecorators and strictPropertyInitialization to tsconfig.json
+sed -i '/"strict": true,/a \    "experimentalDecorators": true,\n    "strictPropertyInitialization": false,' tsconfig.json
 
 ### Create Project Structure
 echo "Creating project structure..."
@@ -105,7 +131,7 @@ yarn add @chakra-ui/react @chakra-ui/core @emotion/react @emotion/styled framer-
 yarn add @types/react-query @types/axios http-proxy-middleware --dev
 
 ## Setup client .env file
-echo "Creating .env file with MONGO_URI..."
+echo "Creating .env file with REACT_APP_ environment variables..."
 echo "REACT_APP_LOGGING_ENV=development" > .env
 echo "REACT_APP_BACKEND_API_URL=/api" >> .env
 cd ..

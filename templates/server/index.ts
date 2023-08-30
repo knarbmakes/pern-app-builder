@@ -14,9 +14,6 @@ import { IncomingMessage, ServerResponse } from 'http';
 const app = express();
 const port = EXPRESS_PORT;
 
-// Connect to DB
-connectDB();
-
 // Add pinoHttpMiddleware to log all HTTP requests.
 app.use((req: IncomingMessage, res: ServerResponse, next: express.NextFunction) => {
   pinoMiddleware(req, res);
@@ -52,6 +49,16 @@ app.get('/health', (_req, res) => {
   res.status(200).send('OK');
 });
 
-app.listen(port, () => {
-  logger.info(`Server is running on port ${port}`);
-});
+// Connect to database.
+(async () => {
+  try {
+    await connectDB();
+  } catch (error) {
+    logger.error(`Error connecting to the database: ${error}`);
+    process.exit(1);
+  }
+
+  app.listen(port, () => {
+    logger.info(`Server is running on port ${port}`);
+  });
+})();

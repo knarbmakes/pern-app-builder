@@ -1,10 +1,36 @@
-import mongoose from 'mongoose';
-import { schemaTemplate } from '../core/schemaTemplate';
-import { CommonTypes } from 'common';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn
+} from "typeorm";
+import { CommonTypes } from "common";
 
-const UserSchema = schemaTemplate<CommonTypes.User>({
-  username: { type: String, required: true, unique: true },
-  email: { type: String, required: true },
-});
+@Entity()
+export class UserModel {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-export const UserModel = mongoose.model('User', UserSchema);
+  @Column({ type: 'varchar' })
+  username: string;
+
+  @Column({ type: 'varchar', unique: true })
+  email: string;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  toClient(): CommonTypes.User {
+    return {
+      id: this.id,
+      createdAt: this.createdAt.toISOString(),
+      updatedAt: this.updatedAt.toISOString(),
+      username: this.username,
+      email: this.email,
+    };
+  }
+}

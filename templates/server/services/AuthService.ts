@@ -2,9 +2,9 @@ import jwt from 'jsonwebtoken';
 import { JWT_SECRET_KEY, HOSTED_ON } from '../envConfig';
 import { CommonTypes } from 'common';
 import { NextFunction, Response, Request, CookieOptions } from 'express';
-import { PasswordAuthModel } from '../models/PasswordAuthModel';
 import * as bcrypt from 'bcrypt';
 import { logger } from '../core/logger';
+import { PasswordAuthRepository } from '../models/PasswordAuthRepository';
 
 // Constants
 const SALT_ROUNDS = 10;
@@ -48,7 +48,8 @@ export class AuthService {
 
   // Check if the password is correct
   static async checkPassword(userId: string, password: string): Promise<boolean> {
-    const passwordAuth = await PasswordAuthModel.findOne({ userId }).exec();
+    const passwordAuthRepo = new PasswordAuthRepository();
+    const passwordAuth = await passwordAuthRepo.findByUserId(userId);
     return passwordAuth ? await bcrypt.compare(password, passwordAuth.passwordHash) : false;
   }
 

@@ -1,10 +1,34 @@
-import mongoose from 'mongoose';
-import { schemaTemplate } from '../core/schemaTemplate';
-import { PasswordAuth } from '../types/PasswordAuth';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn
+} from "typeorm";
+import { PasswordAuth } from "../types/PasswordAuth";
 
-const PasswordAuthSchema = schemaTemplate<PasswordAuth>({
-  userId: { type: String, required: true, unique: true },
-  passwordHash: { type: String, required: true },
-});
+@Entity()
+export class PasswordAuthModel {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-export const PasswordAuthModel = mongoose.model('PasswordAuth', PasswordAuthSchema);
+  @Column({ type: 'varchar', unique: true })
+  userId: string;
+
+  @Column({ type: 'varchar' })
+  passwordHash: string;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  toClient(): PasswordAuth {
+    return {
+      id: this.id,
+      userId: this.userId,
+      passwordHash: this.passwordHash
+    };
+  }
+}
