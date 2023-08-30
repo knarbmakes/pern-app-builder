@@ -10,6 +10,7 @@ An shell script for quickly scaffolding a MERN stack from a set of templates.
 - Mongoose Data Layer
 - Password Login Authentication
 - Common set of React hooks for querying and mutating data.
+- Pino Logging HTTP requests with Context ID
 
 ## Usage
 

@@ -139,5 +139,18 @@ fi
 # Go back to the root directory
 cd ../..
 
+# Copy .vscode/settings.json from the script directory to the project directory
+vscode_settings_src="$script_dir/.vscode/settings.json"
+vscode_settings_dest=".vscode/settings.json"
+
+if [ -f "$vscode_settings_src" ]; then
+  echo "Copying .vscode/settings.json..."
+  # Create .vscode folder in the project directory if it doesn't exist
+  mkdir -p ".vscode"
+  cp "$vscode_settings_src" "$vscode_settings_dest"
+else
+  echo ".vscode/settings.json not found in the script directory. Skipping copy."
+fi
+
 # Install dependencies
 yarn install
