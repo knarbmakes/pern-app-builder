@@ -3,6 +3,8 @@
 
 An shell script for quickly scaffolding a MERN stack from a set of templates.
 
+MERN = MongoDB + Express + React + Node.js
+
 ## Features
 
 - Uses Yarn workspaces for segmenting server, client and common library for types
