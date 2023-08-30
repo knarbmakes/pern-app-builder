@@ -9,6 +9,12 @@ export class UserService {
   // Create a new user
   static async create(user: Partial<CommonTypes.User>, password?: string): Promise<DataReply<CommonTypes.User>> {
     try {
+      // Check if the user already exists
+      const existing = await UserModel.findOne({ email: user.email }).exec();
+      if (existing) {
+        return { error: 'That email is already in use' };
+      }
+
       const created = await UserModel.create(user);
 
       if (password) {
@@ -37,22 +43,12 @@ export class UserService {
     }
   }
 
-  // Get the user's password hash
+  // Get user by loose query
   static async getByQuery(query: FilterQuery<CommonTypes.User>): Promise<DataReply<CommonTypes.User | null>> {
     try {
       const user = await UserModel.findOne(query).exec();
       if (!user) return { data: null };
       return { data: user.toJSON() };
-    } catch (error: any) {
-      return { error: error.message };
-    }
-  }
-
-  // New method to refresh the token
-  static async refresh(user: CommonTypes.User): Promise<DataReply<string>> {
-    try {
-      const accessToken = AuthService.generateAccessToken(user);
-      return { data: accessToken };
     } catch (error: any) {
       return { error: error.message };
     }

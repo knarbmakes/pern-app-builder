@@ -4,98 +4,77 @@ import { CommonTypes } from 'common';
 import { NextFunction, Response, Request, CookieOptions } from 'express';
 import { PasswordAuthModel } from '../models/PasswordAuthModel';
 import * as bcrypt from 'bcrypt';
+import { logger } from '../core/logger';
 
+// Constants
 const SALT_ROUNDS = 10;
 const ACCESS_TOKEN_EXP = '7h';
 const REFRESH_TOKEN_EXP = '7d';
 export const REFRESH_TOKEN_KEY = 'app_refresh_token';
 
 export class AuthService {
-  static generateAccessToken(user: CommonTypes.User): string {
-    return jwt.sign({ user }, JWT_SECRET_KEY, { expiresIn: ACCESS_TOKEN_EXP });
+  // Generate tokens
+  static generateToken(user: CommonTypes.User, type: 'access' | 'refresh'): string {
+    const expiresIn = type === 'access' ? ACCESS_TOKEN_EXP : REFRESH_TOKEN_EXP;
+    return jwt.sign({ user }, JWT_SECRET_KEY, { expiresIn });
   }
 
-  static generateRefreshToken(user: CommonTypes.User): string {
-    return jwt.sign({ user }, JWT_SECRET_KEY, { expiresIn: REFRESH_TOKEN_EXP });
-  }
-
+  // Verify JWT token and log errors
   static verifyToken(token: string): any {
-    return jwt.verify(token, JWT_SECRET_KEY);
+    try {
+      return jwt.verify(token, JWT_SECRET_KEY);
+    } catch (err) {
+      logger.error(`Error verifying ${token.substr(0, 10)}... token: ${err}`);
+      throw new Error('Invalid token');
+    }
   }
 
+  // Cookie properties for refresh token
   static makeRefreshCookieProps(expires?: Date): CookieOptions {
     return {
       secure: true,
       httpOnly: true,
       sameSite: 'lax',
       domain: HOSTED_ON,
-      expires: expires ? expires : new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // 7 days
+      expires: expires || new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
     };
   }
 
+  // Hash password
   static async hashPassword(password: string): Promise<string> {
-    try {
-      const salt = await bcrypt.genSalt(SALT_ROUNDS);
-      const hashedPassword = await bcrypt.hash(password, salt);
-      return hashedPassword;
-    } catch (err) {
-      // Handle error appropriately here
-      throw new Error('Error while hashing the password');
-    }
+    const salt = await bcrypt.genSalt(SALT_ROUNDS);
+    return await bcrypt.hash(password, salt);
   }
 
+  // Check if the password is correct
   static async checkPassword(userId: string, password: string): Promise<boolean> {
-    try {
-      const passwordAuth = await PasswordAuthModel.findOne({ userId }).exec();
-      if (!passwordAuth) return false;
+    const passwordAuth = await PasswordAuthModel.findOne({ userId }).exec();
+    return passwordAuth ? await bcrypt.compare(password, passwordAuth.passwordHash) : false;
+  }
 
-      const match = await bcrypt.compare(password, passwordAuth.passwordHash);
-      return match;
-    } catch (err) {
-      throw new Error('Error while checking the password');
+  // Handle token verification and user attachment to response
+  static handleTokenAndUser(req: Request, res: Response, type: 'access' | 'refresh'): void {
+    const token = type === 'access' ? req.headers['authorization']?.split(' ')[1] : req.cookies?.[REFRESH_TOKEN_KEY];
+    if (!token) throw new Error(`No ${type} token`);
+    const decoded = AuthService.verifyToken(token);
+    res.locals.user = decoded.user;
+    if (type === 'refresh') {
+      const newAccessToken = AuthService.generateToken(decoded.user, 'access');
+      res.header('Authorization', `Bearer ${newAccessToken}`);
     }
   }
 
+  // Middleware for authentication
   static authMiddleware(req: Request, res: Response, next: NextFunction): void {
-    // Get access token, remember to strip Bearer from start of accessToken
-    const accessToken = req.headers['authorization'] && req.headers['authorization'].split(' ')[1];
-    const refreshToken = req.cookies && req.cookies[REFRESH_TOKEN_KEY];
-
-    if (!accessToken && !refreshToken) {
-      res.status(401).send('Access Denied. No token provided.');
-      return;
-    }
-
     try {
-      // If we have an access token, we can just verify it and move on
-      // Strip Bearer from start of accessToken
-      if (!accessToken) {
-        throw new Error('No access token');
-      }
-      const decoded = jwt.verify(accessToken, JWT_SECRET_KEY);
-      // We set the user on the request object so that we can use it for the rest of the request
-      res.locals.user = (<any>decoded).user;
+      AuthService.handleTokenAndUser(req, res, 'access');
       next();
-      return;
-    } catch (error) {
-      if (!refreshToken) {
-        res.status(401).send('Access Denied. No refresh token provided.');
-        return;
-      }
-
+    } catch (accessError) {
       try {
-        const decoded = jwt.verify(refreshToken, JWT_SECRET_KEY);
-        const accessToken = jwt.sign({ user: (<any>decoded).user }, JWT_SECRET_KEY, {
-          expiresIn: ACCESS_TOKEN_EXP,
-        });
-
-        res.cookie(REFRESH_TOKEN_KEY, refreshToken, this.makeRefreshCookieProps()).header('Authorization', accessToken);
-        res.locals.user = (<any>decoded).user;
+        AuthService.handleTokenAndUser(req, res, 'refresh');
         next();
-        return;
-      } catch (error) {
+      } catch (refreshError) {
         res.status(400).send('Invalid Token.');
-        return;
       }
     }
   }

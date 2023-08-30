@@ -40,8 +40,8 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const accessToken = AuthService.generateAccessToken(reply.data);
-    const refreshToken = AuthService.generateRefreshToken(reply.data);
+    const accessToken = AuthService.generateToken(reply.data, 'access');
+    const refreshToken = AuthService.generateToken(reply.data, 'refresh');
 
     return res
       .cookie(REFRESH_TOKEN_KEY, refreshToken, AuthService.makeRefreshCookieProps())
@@ -64,8 +64,8 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(500).json({ error: reply.error });
     }
 
-    const accessToken = AuthService.generateAccessToken(reply.data);
-    const refreshToken = AuthService.generateRefreshToken(reply.data);
+    const accessToken = AuthService.generateToken(reply.data, 'access');
+    const refreshToken = AuthService.generateToken(reply.data, 'refresh');
 
     return res
       .cookie(REFRESH_TOKEN_KEY, refreshToken, AuthService.makeRefreshCookieProps())
@@ -73,31 +73,6 @@ router.post('/register', async (req: Request, res: Response) => {
       .json(reply.data);
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
-  }
-});
-
-// Refresh route
-// TODO: When do we want to call this?
-router.post('/refresh', async (req: Request, res: Response) => {
-  try {
-    const refreshToken = req.cookies[REFRESH_TOKEN_KEY];
-
-    if (!refreshToken) {
-      return res.status(401).json({ error: 'Access Denied. No refresh token provided.' });
-    }
-    const decoded: any = AuthService.verifyToken(refreshToken);
-    const reply: DataReply<string> = await UserService.refresh(decoded.user);
-
-    if (reply.error) {
-      return res.status(401).json({ error: 'Invalid refresh token' });
-    }
-
-    res
-      .cookie(REFRESH_TOKEN_KEY, refreshToken, AuthService.makeRefreshCookieProps())
-      .header('Authorization', `Bearer ${reply.data}`)
-      .json(decoded.user);
-  } catch (error: any) {
-    return res.status(401).json({ error: 'Invalid refresh token' });
   }
 });
 
