@@ -21,6 +21,7 @@ export interface AuthContextData {
   getAccessToken: () => string | null;
   setAccessTokenFromResponse: (response: any) => void;
   logout?: () => void;
+  toggleLogin?: () => void;
 }
 
 export const AuthContext = createContext<AuthContextData>({
@@ -29,6 +30,7 @@ export const AuthContext = createContext<AuthContextData>({
   getAccessToken,
   setAccessTokenFromResponse,
   logout: () => null,
+  toggleLogin: () => null,
 });
 
 type Props = {
@@ -41,6 +43,12 @@ export function AuthProvider({ children }: Props) {
   const loginMutation = useLogin();
   const registerMutation = useRegister();
   const logoutMutation = useLogout();
+
+  const [showLogin, setShowLogin] = useState(false);
+
+  const toggleLogin = () => {
+    setShowLogin((prevState) => !prevState);
+  };
 
   useEffect(() => {
     if (userData) {
@@ -68,6 +76,7 @@ export function AuthProvider({ children }: Props) {
       await logoutMutation.mutateAsync({});
       localStorage.removeItem(AUTH_TOKEN_LS_KEY);
       handleToastNotification('Success', 'You have successfully logged out', 'success');
+      setShowLogin(false);
       setUser(null);
     } catch (error: any) {
       handleToastNotification('Error', 'There was an error logging out', 'error', error);
@@ -102,13 +111,14 @@ export function AuthProvider({ children }: Props) {
       getAccessToken,
       setAccessTokenFromResponse,
       logout: handleLogout,
+      toggleLogin,
     }),
     [handleLogout, user]
   );
 
   return (
     <AuthContext.Provider value={value}>
-      {!user ? (
+      {showLogin && !user ? (
         <Login
           handleLogin={(email, password) => handleAuthentication('login', email, password)}
           handleRegister={(email, password, username) => handleAuthentication('register', email, password, username)}
