@@ -112,7 +112,10 @@ echo "Server setup complete! You can now run the server using 'yarn start'"
 cd ..
 
 ## Client setup using create-react-app
-npx create-react-app client --template typescript
+npx create-react-app client --template typescript --use-yarn --skip-git
+rm -rf client/.git
+rm -f client/.gitignore
+
 
 ### Copy template files from the predefined directory for the client
 template_directory_client="$script_dir/templates/client"
@@ -165,18 +168,35 @@ fi
 # Go back to the root directory
 cd ../..
 
-# Copy .vscode/settings.json from the script directory to the project directory
-vscode_settings_src="$script_dir/.vscode/settings.json"
-vscode_settings_dest=".vscode/settings.json"
+# Function to copy files
+copy_file() {
+  local src="$1"
+  local dest="$2"
+  local dest_dir="$(dirname "$dest")"
 
-if [ -f "$vscode_settings_src" ]; then
-  echo "Copying .vscode/settings.json..."
-  # Create .vscode folder in the project directory if it doesn't exist
-  mkdir -p ".vscode"
-  cp "$vscode_settings_src" "$vscode_settings_dest"
-else
-  echo ".vscode/settings.json not found in the script directory. Skipping copy."
-fi
+  # Create the destination directory if it doesn't exist
+  mkdir -p "$dest_dir"
+
+  if [ -f "$src" ]; then
+    echo "Copying $src to $dest..."
+    cp "$src" "$dest"
+  else
+    echo "$src not found. Skipping copy."
+  fi
+}
+
+# List of files to copy
+declare -A files_to_copy=(
+  [".vscode/settings.json"]="$script_dir/.vscode/settings.json"
+  [".gitignore"]="$script_dir/.gitignore"
+)
+
+# Loop through and copy each file
+for dest in "${!files_to_copy[@]}"; do
+  src="${files_to_copy[$dest]}"
+  copy_file "$src" "$dest"
+done
+
 
 # Install dependencies
 yarn install
